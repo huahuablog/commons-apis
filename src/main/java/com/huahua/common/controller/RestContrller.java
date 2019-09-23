@@ -2,7 +2,6 @@ package com.huahua.common.controller;
 
 import com.huahua.common.pojo.RestBean;
 import com.huahua.common.service.RestService;
-import com.java.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,18 +50,14 @@ public class RestContrller {
         }
     return rc;
     }
-//通过tokenID和path，获取类信息
-    public  String getContrllerByToken(String token,String path){
-        String className=null;
+//通过tokenID和path，获取类信息(className和secretkey)
+    public  String getContrllerAndSecretKeyByToken(String token,String path){
+        Map<String,String> map=new HashMap<String, String>();
         try {
-           Map<String,String> map=restService.getRestAPIController(token,path);
-           className=map.get("controller");
-           if(StringUtil.isEmpty(className)){
-               log.info("className is null ,tokenID:{},path:{}",token,path);
-           }
-            return className;
+            map=restService.getRestAPIController(token,path);
+            return map.toString();
         } catch (Exception e) {
-            log.error("query class Name Fail ，tokenID:{},path:{},{}",token,path,e);
+            log.error("query controller and secretKey error，tokenID:{},path:{},MSG:{}",token,path,e);
             e.printStackTrace();
             return null;
         }
