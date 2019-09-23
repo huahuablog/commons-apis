@@ -6,8 +6,9 @@ import com.huahua.common.pojo.RestBean;
 import org.slf4j.Logger;
 
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class RestService extends DBBaseService<DBBaseDao> {
     public RestService(Logger log){
@@ -23,16 +24,29 @@ public class RestService extends DBBaseService<DBBaseDao> {
     }
 
     /***
-     *通过tokenID 和path获取contrller
+     *通过tokenID 和path获取contrller和secretKey
      */
-    public String getRestAPIController(String tokenID,String path) throws Exception {
-        String query_sql="";
+    public Map<String,String> getRestAPIController(String tokenID,String path) throws Exception {
+        String query_sql="select t3.class_name,t2.secret_key from sys_api_token_rel t1 \n" +
+                "inner join sys_api_token_secret t2 \n" +
+                "on  t1.token_id=t2.token_id\n" +
+                "inner join sys_api_control t3 \n" +
+                "on t3.id=t1.api_id \n" +
+                "where t2.valid='0'\n" +
+                "and t1.token_id=?\n" +
+                "and t3.api_called_name=?";
         Object[] objects=new Object[2];
         objects[0]=tokenID;
         objects[1]=path;
+        String controller=null;
+        String secretKey=null;
+        Map<String,String> map= new HashMap<String,String>();
         ResultSet rs= this.query(null,query_sql,objects);
         while (rs.next()){
-            rs.getObject()
+            map.put("controller",rs.getString("class_name")) ;
+            map.put("secretKey",rs.getString("secret_key"));
         }
+        return map;
     }
+
 }

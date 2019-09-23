@@ -2,6 +2,7 @@ package com.huahua.common.controller;
 
 import com.huahua.common.pojo.RestBean;
 import com.huahua.common.service.RestService;
+import com.java.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +54,19 @@ public class RestContrller {
 //通过tokenID和path，获取类信息
     public  String getContrllerByToken(String token,String path){
         String className=null;
+        try {
+           Map<String,String> map=restService.getRestAPIController(token,path);
+           className=map.get("controller");
+           if(StringUtil.isEmpty(className)){
+               log.info("className is null ,tokenID:{},path:{}",token,path);
+           }
+            return className;
+        } catch (Exception e) {
+            log.error("query class Name Fail ，tokenID:{},path:{},{}",token,path,e);
+            e.printStackTrace();
+            return null;
+        }
 
-        return null;
     }
 
 
