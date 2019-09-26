@@ -1,6 +1,7 @@
 package com.huahua.common.action;
 
-import ch.qos.logback.classic.Logger;
+
+import org.slf4j.Logger;
 
 public interface ActionInterface {
 

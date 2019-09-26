@@ -27,21 +27,20 @@ private static Set<ServiceInfo> SERVICES=new HashSet<ServiceInfo>();
             //ServletHandler.getServlets()返回的是一个ServletHolder[]数组，Holder封装了servlet的相关信息
             for (ServletHolder holder : servletHandler.getServlets()) {
                 if (servlet.getClass().toString().equals(holder.getServlet().getClass().toString())) {
-                    //如果请求的servlet与原来保存的MAP_SERVER中port对应的servlet相同，则记录其holder的名称，白名单
+                    //移除指定的servlet
                     names.add(holder.getName());
                 }else {
-                    //如果不相同，则单独记录保存，黑名单
                     servletHolders.add(holder);
                 }
             }
-            //遍历servletHandler,把已存在的请求的servlet剔除，不存在的servlet单独mapping保存
+            //遍历servletHandler,把指定的servlet剔除
             List<ServletMapping> list_mapping=new ArrayList<ServletMapping>();
             for(ServletMapping mapping:servletHandler.getServletMappings()){
                 if(!names.contains(mapping.getServletName())){
                     list_mapping.add(mapping);
                 }
             }
-            //将筛选好的ServletHolders和ServletMapping注入ServletHandler（黑名单），并将其初始化为空
+            //将筛选好的ServletHolders和ServletMapping注入ServletHandler
             servletHandler.setServletMappings(list_mapping.toArray(new ServletMapping[0]));
             servletHandler.setServlets(servletHolders.toArray(new ServletHolder[0]));
 

@@ -1,5 +1,6 @@
 package com.huahua.common.controller;
 
+import com.alibaba.fastjson.JSONObject;
 import com.huahua.common.pojo.RestBean;
 import com.huahua.common.service.RestService;
 import org.slf4j.Logger;
@@ -34,10 +35,10 @@ public class RestContrller {
         }
     }
 //通过类名反射，加载类并创建返回该类的一个实例
-    public RestAuthContrl getControllerByClassName(String className){
-        RestAuthContrl rc=null;
+    public RestAuthController getControllerByClassName(String className){
+        RestAuthController rc=null;
         try {
-            rc= (RestAuthContrl) Class.forName(className).newInstance();
+            rc= (RestAuthController) Class.forName(className).newInstance();
         } catch (InstantiationException e) {
             log.error("instance RestClass:{},fail:{}",className,e);
             e.printStackTrace();
@@ -52,10 +53,13 @@ public class RestContrller {
     }
 //通过tokenID和path，获取类信息(className和secretkey)
     public  String getContrllerAndSecretKeyByToken(String token,String path){
-        Map<String,String> map=new HashMap<String, String>();
+
+        JSONObject jsonObj=new JSONObject();
         try {
-            map=restService.getRestAPIController(token,path);
-            return map.toString();
+            Map<String,String> map=restService.getRestAPIController(token,path);
+            jsonObj.put("controller",map.get("controller"));
+            jsonObj.put("secretKey",map.get("secretKey"));
+            return jsonObj.toString();
         } catch (Exception e) {
             log.error("query controller and secretKey error，tokenID:{},path:{},MSG:{}",token,path,e);
             e.printStackTrace();

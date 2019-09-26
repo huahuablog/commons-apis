@@ -19,8 +19,8 @@ public class RestService extends DBBaseService<DBBaseDao> {
      * 获取以开发好的所有的API接口类
      * */
     public List<RestBean> getAllRestAPI() throws Exception {
-        String query_sql="select apiname, requestmethod,validflag,controllername,empname from sys_api_control ";
-        return this.query(null,query_sql,RestBean.class,new Object[]{});
+        String query_sql="select api_called_name, req_method,is_valid,class_name,create_name from sys_api_control ";
+        return this.query("test",query_sql,RestBean.class,new Object[]{});
     }
 
     /***

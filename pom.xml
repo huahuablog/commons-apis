@@ -9,13 +9,25 @@
     <packaging>jar</packaging>
     <version>1.0-SNAPSHOT</version>
     <dependencies>
+
+        <!--logback日志实现使用-->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>1.3.0-alpha4</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.3.0-alpha4</version>
+        </dependency>
         <!--自己专用连接DB的工具-->
         <dependency>
             <groupId>com.java.maven</groupId>
             <artifactId>javaConnDB</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
-        <!--servlet差插件工具-->
+        <!--servlet插件工具-->
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
@@ -49,7 +61,6 @@
             <artifactId>jetty-server</artifactId>
             <version>9.4.2.v20170220</version>
         </dependency>
-
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-io</artifactId>
@@ -75,9 +86,6 @@
             <artifactId>jetty-servlet</artifactId>
             <version>9.4.2.v20170220</version>
         </dependency>
-
-
-
     </dependencies>
 
 </project>

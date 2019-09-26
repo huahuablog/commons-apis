@@ -5,9 +5,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-public abstract class RestAuthContrl {
+public abstract class RestAuthController {
     protected Logger log;
-    public RestAuthContrl(){
+    public RestAuthController(){
         log= LoggerFactory.getLogger(this.getClass());
     }
 

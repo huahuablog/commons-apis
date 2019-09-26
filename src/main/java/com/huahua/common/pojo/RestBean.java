@@ -4,13 +4,13 @@ package com.huahua.common.pojo;
 import com.conn.db.base.annotation.DBColumnAnnotation;
 
 public class RestBean {
-    @DBColumnAnnotation(columnName="apiName")
+    @DBColumnAnnotation(columnName="api_called_name")
     private  String api_path;
-    @DBColumnAnnotation(columnName="validFlag")
+    @DBColumnAnnotation(columnName="is_valid")
     private String valid_flag;
-    @DBColumnAnnotation(columnName="requestMethod")
+    @DBColumnAnnotation(columnName="req_method")
     private String request_method;
-    @DBColumnAnnotation(columnName="controllerName")
+    @DBColumnAnnotation(columnName="class_name")
     private String controller_name;
 
     public String getApi_path() {
