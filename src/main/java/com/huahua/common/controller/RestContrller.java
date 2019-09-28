@@ -51,17 +51,22 @@ public class RestContrller {
         }
     return rc;
     }
-//通过tokenID和path，获取类信息(className和secretkey)
-    public  String getContrllerAndSecretKeyByToken(String token,String path){
+/**
+    获取类信息(className和secretkey)
+ @param params tokenID、path
+ @return String
+ */
+
+    public  String getContrllerAndSecretKeyByToken(String...params){
 
         JSONObject jsonObj=new JSONObject();
         try {
-            Map<String,String> map=restService.getRestAPIController(token,path);
+            Map<String,String> map=restService.getRestAPIController(params);
             jsonObj.put("controller",map.get("controller"));
             jsonObj.put("secretKey",map.get("secretKey"));
             return jsonObj.toString();
         } catch (Exception e) {
-            log.error("query controller and secretKey error，tokenID:{},path:{},MSG:{}",token,path,e);
+            log.error("query controller and secretKey error，tokenID&path,MSG:{}",params,e);
             e.printStackTrace();
             return null;
         }

@@ -44,7 +44,7 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response) t
     //手动更新REST API
     if(path.equals(RestConst.REST_API_UPDATE)){
         String tokenId=request.getHeader("tokenId");
-        if(StringUtil.isEmpty(tokenId)||!tokenId.equals(RestConst.REST_API_UPDATE_TOKENID)){
+        if(StringUtil.isNotEmpty(tokenId)||!tokenId.equals(RestConst.REST_API_UPDATE_TOKENID)){
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -56,13 +56,13 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response) t
     }else{//处理其他get请求
         //拿到该URi对应的一个api资源，map没有重复
         RestBean bean=MAP_API.get(path);
-        if(bean.getRequest_method().equals("GET")){
+        if(!bean.getRequest_method().equals("GET")){
             //不是GET请求，直接交给servler自己去处理，我们不管
             super.doGet(request,response);
         }else{
             //get请求，进来，获取参数并处理
             String params=request.getQueryString();
-            this.doRequest(bean,request,response,params,path);
+            this.doRequest(bean,request,response,path);
         }
     }
 }
@@ -79,7 +79,7 @@ protected  void doPost(HttpServletRequest request, HttpServletResponse response)
         String params=request.getQueryString();
         ServletInputStream in=request.getInputStream();
         String input_in= IOUtil.readline(in,RestConst.ENCODE);
-        this.doRequest(bean,request,response,params,input_in);
+        this.doRequest(bean,request,response,input_in);
     }
 
 }
@@ -94,8 +94,15 @@ protected  void doDelete(HttpServletRequest request,HttpServletResponse response
 super.doDelete(request,response);
 }
 
-//实际处理请求的方法
-private void doRequest(RestBean bean,HttpServletRequest request,HttpServletResponse response,String... params) throws IOException {
+/**
+实际处理请求的方法
+ @param bean 封装的bean类
+ @param request 请求
+ @param response 响应
+ @param params 请求携带的参数
+ */
+
+private void doRequest(RestBean bean,HttpServletRequest request,HttpServletResponse response,String params) throws IOException {
     //跨域控制
     response.addHeader("Access-Control-Allow-Origin", "*");
     //请求方法控制
@@ -105,10 +112,12 @@ private void doRequest(RestBean bean,HttpServletRequest request,HttpServletRespo
     response.setCharacterEncoding(RestConst.ENCODE);
     // 响应头设置
     response.setHeader("Access-Control-Allow-Headers", "*");
+    String req_param=request.getQueryString();
+    String req_mothed=request.getMethod();
 
     String className=null;
     String tokenID=request.getHeader("tokenId");
-    if(StringUtil.isEmpty(tokenID)&&!bean.getValid_flag().equals("0")){
+    if(StringUtil.isNotEmpty(tokenID)&&!bean.getValid_flag().equals("0")){
         //需要tokenID验证，但tokenID为空
         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         response.getWriter().write("tokenId can not be null");
@@ -117,8 +126,8 @@ private void doRequest(RestBean bean,HttpServletRequest request,HttpServletRespo
     }
     //解析url参数
     Map<String,String> paramsMap=new HashMap<String, String>();
-    if(!StringUtil.isEmpty(params[0])){
-        String paramsList[]=params[0].split("&");
+    if(StringUtil.isNotEmpty(req_param)){
+        String paramsList[]=req_param.split("&");
         for(int i=0;i<paramsList.length;i++){
             String item[]=paramsList[i].split("=");
             paramsMap.put(item[0],item[1]);
@@ -130,7 +139,7 @@ private void doRequest(RestBean bean,HttpServletRequest request,HttpServletRespo
     switch (Integer.parseInt(bean.getValid_flag())){
         case 1://tokenID验证
             className=jsonObj.getString("controller");
-            if(StringUtil.isEmpty(className)){
+            if(StringUtil.isNotEmpty(className)){
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 log.error("URL:{},tokenId:{},the apis can not called",request.getRequestURI(),tokenID);
                 return;
@@ -139,7 +148,7 @@ private void doRequest(RestBean bean,HttpServletRequest request,HttpServletRespo
         case 2://MD5验证
             AuthVerifyUtil authMD5=new AuthVerifyUtil();
             String secretKey=jsonObj.getString("secretKey");
-            if(!authMD5.verifyMD5Sign(secretKey,tokenID,request.getRequestURI(),paramsMap,params[1])){
+            if(!authMD5.verifyMD5Sign(secretKey,tokenID,request.getRequestURI(),paramsMap,params)){
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.getWriter().write("Authority Verify Fail,");
                 log.error("URL:{},tokenID:{},auth verify MD5 fail",request.getRequestURI(),tokenID);
@@ -149,104 +158,102 @@ private void doRequest(RestBean bean,HttpServletRequest request,HttpServletRespo
             className=bean.getController_name();
             break;
     }
-    //----------------访问频率限制-------------------
-   //1.使用客户端IP+数据库设定时间间隔限制访问斌率
-    long thisTime=System.currentTimeMillis();
-    long interval=5;
     RestAuthController restAuth=restContrller.getControllerByClassName(className);
-    String requestIP= Utility.getRemoteRequestIP(request);
+    //----------------访问频率限制-------------------
+    this.limitRequest(request,response,bean,restAuth,paramsMap);
 
-    if(bean.getValid_flag().equals("0")){
-        if(!IP_MAP.containsKey(requestIP)){
-            HashMap<String,Long> urlMap=new HashMap<String, Long>();
-            // 此次调用的接口url和时间写入map
-            urlMap.put(request.getRequestURI(), thisTime);
-            IP_MAP.put(requestIP,urlMap);
-
-            restAuth.setTokenID(tokenID);
-            restAuth.setPath(params[2]);
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setCharacterEncoding(Constants.ENCODE);
-            response.getWriter().write(restAuth.doRequest(paramsMap, params[1]));
-        } else {
-            if (!IP_MAP.get(requestIP).containsKey(request.getRequestURI())) {
-                IP_MAP.get(requestIP).put(request.getRequestURI(), thisTime);
-                restAuth.setTokenID(tokenID);
-                restAuth.setPath(params[2]);
-                response.setStatus(HttpServletResponse.SC_OK);
-                response.setCharacterEncoding(Constants.ENCODE);
-                response.getWriter().write(
-                        restAuth.doRequest(paramsMap, params[1]));
-            } else {
-                long lastTime = IP_MAP.get(requestIP).get(request.getRequestURI());
-                if (thisTime - lastTime >= interval * 1000) {
-                    // 此次调用的接口url和时间写入map
-                    IP_MAP.get(requestIP).put(request.getRequestURI(), thisTime);
-                    restAuth.setTokenID(tokenID);
-                    restAuth.setPath(params[2]);
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    response.setCharacterEncoding(Constants.ENCODE);
-                    response.getWriter().write(
-                            restAuth.doRequest(paramsMap, params[1]));
-                } else {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.getWriter().write("No Frequent Access/禁止频繁访问");
-                    log.warn("No Frequent Access/禁止频繁访问，API:{},IP:{},lastTime:{}",request.getRequestURI(),requestIP,lastTime);
-                    return;
-                }
-            }
-        }
-        }else{
-        //2.使用tokenID限制调用频率
-        if (!TOKENID_MAP.containsKey(tokenID)) {
-            // tokenID首次调用
-            HashMap<String, Long> urlMap = new HashMap<String, Long>();
-            // 此次调用的接口url和时间写入map
-            urlMap.put(request.getRequestURI(), thisTime);
-            TOKENID_MAP.put(tokenID, urlMap);
-
-            restAuth.setTokenID(tokenID);
-            restAuth.setPath(params[2]);
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setCharacterEncoding(Constants.ENCODE);
-            response.getWriter().write(restAuth.doRequest(paramsMap, params[1]));
-        } else {
-            //tokenID首次调用某接口?
-            if (!TOKENID_MAP.get(tokenID).containsKey(request.getRequestURI())) {
-                // 记录首次调用时间
-                TOKENID_MAP.get(tokenID).put(request.getRequestURI(), thisTime);
-
-                restAuth.setTokenID(tokenID);
-                restAuth.setPath(params[2]);
-                response.setStatus(HttpServletResponse.SC_OK);
-                response.setCharacterEncoding(Constants.ENCODE);
-                response.getWriter().write(
-                        restAuth.doRequest(paramsMap, params[1]));
-            } else {
-                long lastTime = TOKENID_MAP.get(tokenID).get(request.getRequestURI());
-                if (thisTime - lastTime >= interval * 1000) {
-                    // 此次调用的接口url和时间写入map
-                    TOKENID_MAP.get(tokenID).put(request.getRequestURI(), thisTime);
-
-                    restAuth.setTokenID(tokenID);
-                    restAuth.setPath(params[2]);
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    response.setCharacterEncoding(Constants.ENCODE);
-                    response.getWriter().write(
-                            restAuth.doRequest(paramsMap, params[1]));
-                } else {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.getWriter().write("No Frequent Access/禁止频繁访问");
-                    log.warn("No Frequent Access/禁止频繁访问，API:{},token:{},lastTime:{}",request.getRequestURI(),tokenID,lastTime);
-                    return;
-                }
-            }
-
-        }
-
-    }
-    //-----------------------------------
 }
+/**
+    限制客户端或token用户访问pinlv
+ @param request 请求
+ @param response 响应
+ @param bean 封装的bean类
+ @param restAuth 封装的bean类
+ @param paramsMap 请求的所有参数
+ */
+
+    private void limitRequest(HttpServletRequest request,HttpServletResponse response,RestBean bean,RestAuthController restAuth,Map<String,String> paramsMap) throws IOException {
+        long thisTime=System.currentTimeMillis();
+        long interval=5;
+        String tokenID=request.getHeader("tokenId");
+        String requestIP= Utility.getRemoteRequestIP(request);
+        String path=request.getRequestURI();
+        if(bean.getValid_flag().equals("0")){//没有tokenID
+            if(!IP_MAP.containsKey(requestIP)){
+                HashMap<String,Long> urlMap=new HashMap<String, Long>();
+                // 此次调用的接口url和时间写入map
+                urlMap.put(request.getRequestURI(), thisTime);
+                IP_MAP.put(requestIP,urlMap);
+                this.jettyResponse(response,restAuth,tokenID,path,paramsMap);
+            } else {
+                if (!IP_MAP.get(requestIP).containsKey(request.getRequestURI())) {
+                    IP_MAP.get(requestIP).put(request.getRequestURI(), thisTime);
+                    this.jettyResponse(response,restAuth,tokenID,path,paramsMap);
+                } else {
+                    long lastTime = IP_MAP.get(requestIP).get(request.getRequestURI());
+                    if (thisTime - lastTime >= interval * 1000) {
+                        // 此次调用的接口url和时间写入map
+                        IP_MAP.get(requestIP).put(request.getRequestURI(), thisTime);
+                        this.jettyResponse(response,restAuth,tokenID,path,paramsMap);
+                    } else {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.getWriter().write("No Frequent Access/禁止频繁访问");
+                        log.warn("No Frequent Access/禁止频繁访问，API:{},IP:{},lastTime:{}",request.getRequestURI(),requestIP,lastTime);
+                        return;
+                    }
+                }
+            }
+        }else{
+            //2.使用tokenID限制调用频率
+            if (!TOKENID_MAP.containsKey(tokenID)) {
+                // tokenID首次调用
+                HashMap<String, Long> urlMap = new HashMap<String, Long>();
+                // 此次调用的接口url和时间写入map
+                urlMap.put(request.getRequestURI(), thisTime);
+                TOKENID_MAP.put(tokenID, urlMap);
+                this.jettyResponse(response,restAuth,tokenID,path,paramsMap);
+            } else {
+                //tokenID首次调用某接口
+                if (!TOKENID_MAP.get(tokenID).containsKey(request.getRequestURI())) {
+                    // 记录首次调用时间
+                    TOKENID_MAP.get(tokenID).put(request.getRequestURI(), thisTime);
+                    this.jettyResponse(response,restAuth,tokenID,path,paramsMap);
+                } else {
+                    long lastTime = TOKENID_MAP.get(tokenID).get(request.getRequestURI());
+                    if (thisTime - lastTime >= interval * 1000) {
+                        // 此次调用的接口url和时间写入map
+                        TOKENID_MAP.get(tokenID).put(request.getRequestURI(), thisTime);
+                        this.jettyResponse(response,restAuth,tokenID,path,paramsMap);
+                    } else {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.getWriter().write("No Frequent Access/禁止频繁访问");
+                        log.warn("No Frequent Access/禁止频繁访问，API:{},token:{},lastTime:{}",request.getRequestURI(),tokenID,lastTime);
+                        return;
+                    }
+                }
+
+            }
+
+        }
+    }
+/**
+ *处理请求后response响应
+ * @param response 响应
+ * @param restAuth 封装的bean类
+ * @param tokenID
+ * @param path 请求的URI
+ * @param paramsMap 请求的参数
+ *
+ */
+private void jettyResponse(HttpServletResponse response,RestAuthController restAuth,String tokenID,String path,Map<String,String> paramsMap) throws IOException {
+    restAuth.setTokenID(tokenID);
+    restAuth.setPath(path);
+    response.setStatus(HttpServletResponse.SC_OK);
+    response.setCharacterEncoding(Constants.ENCODE);
+    response.getWriter().write(
+            restAuth.doRequest(paramsMap, path));
+}
+
 /****************************jetty初始化*************************************/
     //初始化
     public int doInit(Logger var1) {
